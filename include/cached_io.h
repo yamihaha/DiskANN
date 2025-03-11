@@ -122,7 +122,7 @@ class cached_ofstream
         writer.exceptions(std::ifstream::failbit | std::ifstream::badbit);
         try
         {
-            writer.open(filename, std::ios::binary);
+            writer.open(filename, std::ios::binary);      // 写入调用的是 ofstream.write
             assert(writer.is_open());
             assert(cache_size > 0);
             cache_buf = new char[cache_size];
@@ -166,7 +166,7 @@ class cached_ofstream
     void write(char *write_buf, uint64_t n_bytes)
     {
         assert(cache_buf != nullptr);
-        if (n_bytes <= (cache_size - cur_off))
+        if (n_bytes <= (cache_size - cur_off))        // cache_size : 64*1024*1024 , 64 MB
         {
             // case 1: cache can take all data
             memcpy(cache_buf + cur_off, write_buf, n_bytes);
@@ -174,12 +174,12 @@ class cached_ofstream
         }
         else
         {
-            // case 2: cache cant take all data
+            // case 2: cache can not take all data
             // go to disk and write existing cache data
             writer.write(cache_buf, cur_off);
             fsize += cur_off;
             // write the new data to disk
-            writer.write(write_buf, n_bytes);
+            writer.write(write_buf, n_bytes);     // 实际写入过程，调用 ofstream.write 函数
             fsize += n_bytes;
             // memset all cache data and reset cur_off
             memset(cache_buf, 0, cache_size);

@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug build_disk_index",
+            "type": "lldb", // 调试器类型
+            "request": "launch", // 启动调试
+            "program": "${workspaceFolder}/build/apps/build_disk_index", // 可执行文件路径
+            "args": [
+                "--data_type", "float",
+                "--dist_fn", "l2",
+                "--data_path", "${workspaceFolder}/build/data/sift/sift_learn.fbin",
+                "--index_path_prefix", "/mnt/ssd/disk_index_sift_learn_R32_L50_A1.2",
+                "-R", "32",
+                "-L50",
+                "-B", "0.003",
+                "-M", "1"
+            ], // 命令行参数
+            "cwd": "${workspaceFolder}", // 工作目录
+            "environment": [], // 环境变量（如果需要）
+            "preLaunchTask": "", // 调试前执行的任务（如编译）
+            "postDebugTask": "", // 调试后执行的任务
+            "stopOnEntry": false, // 是否在程序入口处暂停
+            "externalConsole": false // 是否使用外部终端
+        }
+    ]
+}

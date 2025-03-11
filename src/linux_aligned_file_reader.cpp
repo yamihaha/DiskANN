@@ -38,6 +38,7 @@ void execute_io(io_context_t ctx, int fd, std::vector<AlignedRead> &read_reqs, u
         std::vector<struct iocb> cb(n_ops);
         for (uint64_t j = 0; j < n_ops; j++)
         {
+            // 填充 iocb 结构体
             io_prep_pread(cb.data() + j, fd, read_reqs[j + iter * MAX_EVENTS].buf, read_reqs[j + iter * MAX_EVENTS].len,
                           read_reqs[j + iter * MAX_EVENTS].offset);
         }

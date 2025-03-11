@@ -850,7 +850,7 @@ void create_disk_layout(const std::string base_file, const std::string mem_index
     uint32_t npts, ndims;
 
     // amount to read or write in one shot
-    size_t read_blk_size = 64 * 1024 * 1024;
+    size_t read_blk_size = 64 * 1024 * 1024;     // 一次 64 MB 大小写入
     size_t write_blk_size = read_blk_size;
     cached_ifstream base_reader(base_file, read_blk_size);
     base_reader.read((char *)&npts, sizeof(uint32_t));
@@ -1017,7 +1017,7 @@ void create_disk_layout(const std::string base_file, const std::string mem_index
                 cur_node_id++;
             }
             // flush sector to disk
-            diskann_writer.write(sector_buf.get(), defaults::SECTOR_LEN);
+            diskann_writer.write(sector_buf.get(), defaults::SECTOR_LEN);     // key func
         }
     }
     else

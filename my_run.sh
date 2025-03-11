@@ -1,3 +1,5 @@
+./clean_index_and_res.sh
+
 cd build
 
 sudo ./apps/build_disk_index \
