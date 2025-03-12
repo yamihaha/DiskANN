@@ -893,7 +893,7 @@ void create_disk_layout(const std::string base_file, const std::string mem_index
     size_t actual_file_size = get_file_size(mem_index_file);
     diskann::cout << "Vamana index file size=" << actual_file_size << std::endl;
     std::ifstream vamana_reader(mem_index_file, std::ios::binary);
-    cached_ofstream diskann_writer(output_file, write_blk_size);
+    cached_ofstream diskann_writer(output_file, write_blk_size);     // key
 
     // metadata: width, medoid
     uint32_t width_u32, medoid_u32;
@@ -1331,7 +1331,7 @@ int build_disk_index(const char *dataFilePath, const char *indexFilePath, const 
     timer.reset();
     if (!use_disk_pq)
     {
-        diskann::create_disk_layout<T>(data_file_to_use.c_str(), mem_index_path, disk_index_path);
+        diskann::create_disk_layout<T>(data_file_to_use.c_str(), mem_index_path, disk_index_path);   // key func
     }
     else
     {

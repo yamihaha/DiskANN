@@ -722,7 +722,7 @@ inline size_t save_bin(const std::string &filename, T *data, size_t npts, size_t
     open_file_to_write(writer, filename);
 
     diskann::cout << "Writing bin: " << filename.c_str() << std::endl;
-    writer.seekp(offset, writer.beg);
+    writer.seekp(offset, writer.beg);    // offset = 0 , 表示将文件指针移动到开头
     int npts_i32 = (int)npts, ndims_i32 = (int)ndims;
     size_t bytes_written = npts * ndims * sizeof(T) + 2 * sizeof(uint32_t);
     writer.write((char *)&npts_i32, sizeof(int));

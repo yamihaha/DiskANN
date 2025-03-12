@@ -7,6 +7,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <libaio.h>
+
 #include "logger.h"
 #include "ann_exception.h"
 
@@ -214,4 +216,163 @@ class cached_ofstream
 
     // file size
     uint64_t fsize = 0;
+};
+
+class CachedAioDirectWriter {
+public:
+    CachedAioDirectWriter(const std::string& filename, uint64_t cache_size, uint64_t num_buffers)
+        : cache_size(cache_size), num_buffers(num_buffers), cur_off(0), file_offset(0), ctx(0) {
+        // 初始化 AIO 上下文
+        int ret = io_setup(128, &ctx);
+        if (ret != 0) {
+            throw std::runtime_error("io_setup failed: " + std::string(strerror(-ret)));
+        }
+
+        // 打开文件
+        open(filename);
+
+        // 分配缓存缓冲区
+        for (uint64_t i = 0; i < num_buffers; ++i) {
+            char* buf;
+            ret = posix_memalign(reinterpret_cast<void**>(&buf), 512, cache_size);
+            if (ret != 0) {
+                throw std::runtime_error("posix_memalign failed: " + std::string(strerror(ret)));
+            }
+            cache_buffers.push_back(buf);
+            pending_requests.push_back({});
+        }
+    }
+
+    ~CachedAioDirectWriter() {
+        try {
+            flush(); // 刷新所有未完成的请求
+        } catch (const std::exception& e) {
+            std::cerr << "Error in ~CachedAioDirectWriter: " << e.what() << std::endl;
+        }
+
+        // 释放缓存缓冲区
+        for (auto buf : cache_buffers) {
+            free(buf);
+        }
+
+        // 销毁 AIO 上下文
+        if (ctx != 0) {
+            io_destroy(ctx);
+        }
+
+        // 关闭文件
+        if (fd != -1) {
+            close();
+        }
+    }
+
+    void open(const std::string& filename) {
+        fd = ::open(filename.c_str(), O_WRONLY | O_DIRECT | O_CREAT | O_TRUNC, 0644);
+        if (fd == -1) {
+            throw std::runtime_error("Failed to open file: " + std::string(strerror(errno)));
+        }
+    }
+
+    void close() {
+        if (fd != -1) {
+            ::close(fd);
+            fd = -1;
+        }
+    }
+
+    void write(const char* data, uint64_t size) {
+        while (size > 0) {
+            // 检查当前 cached_buf 是否已满
+            if (cur_off == cache_size) {
+                submit_current_buffer();
+            }
+
+            // 计算当前 cached_buf 剩余空间
+            uint64_t remaining = cache_size - cur_off;
+            uint64_t to_copy = std::min(remaining, size);
+
+            // 将数据复制到当前 cached_buf
+            memcpy(cache_buffers[current_buffer] + cur_off, data, to_copy);
+            cur_off += to_copy;
+            data += to_copy;
+            size -= to_copy;
+        }
+    }
+
+    void flush() {
+        // 提交当前缓冲区的数据
+        if (cur_off > 0) {
+            submit_current_buffer();
+        }
+
+        // 等待所有未完成的请求完成
+        wait_all();
+    }
+
+private:
+    int fd = -1; // 文件描述符
+    io_context_t ctx; // AIO 上下文
+    uint64_t cache_size; // 每个缓存缓冲区的大小
+    uint64_t num_buffers; // 缓存缓冲区的数量
+    std::vector<char*> cache_buffers; // 缓存缓冲区列表
+    uint64_t cur_off; // 当前缓存缓冲区的偏移量
+    uint64_t file_offset; // 文件的写入偏移量
+    uint64_t current_buffer = 0; // 当前使用的缓存缓冲区编号
+    std::vector<std::vector<struct iocb>> pending_requests; // 每个缓存缓冲区的未完成请求
+
+    // 提交当前缓存缓冲区的数据
+    void submit_current_buffer() {
+        if (cur_off == 0) {
+            return; // 没有数据需要提交
+        }
+
+        // 检查当前缓存缓冲区是否有未完成的请求
+        if (!pending_requests[current_buffer].empty()) {
+            wait_for_buffer(current_buffer);
+        }
+
+        // 准备写请求
+        struct iocb cb;
+        io_prep_pwrite(&cb, fd, cache_buffers[current_buffer], cur_off, file_offset);
+
+        // 提交写请求
+        struct iocb* cbs[] = {&cb};
+        int ret = io_submit(ctx, 1, cbs);
+        if (ret != 1) {
+            throw std::runtime_error("io_submit failed: " + std::string(strerror(-ret)));
+        }
+
+        // 更新文件偏移量
+        file_offset += cur_off;
+
+        // 记录未完成的请求
+        pending_requests[current_buffer].push_back(cb);
+
+        // 切换到下一个缓存缓冲区
+        current_buffer = (current_buffer + 1) % num_buffers;
+        cur_off = 0;
+    }
+
+    // 等待指定缓存缓冲区的所有请求完成
+    void wait_for_buffer(uint64_t buffer_index) {
+        auto& requests = pending_requests[buffer_index];
+        if (requests.empty()) {
+            return;
+        }
+
+        std::vector<struct io_event> events(requests.size());
+        int ret = io_getevents(ctx, requests.size(), requests.size(), events.data(), nullptr);
+        if (ret != static_cast<int>(requests.size())) {
+            throw std::runtime_error("io_getevents failed: " + std::string(strerror(-ret)));
+        }
+
+        requests.clear();
+    }
+
+    // 等待所有未完成的请求完成
+    void wait_all() {
+        for (uint64_t i = 0; i < num_buffers; ++i) {
+            wait_for_buffer(i);
+        }
+    }
 };
