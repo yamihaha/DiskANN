@@ -8,6 +8,9 @@
 #include <sstream>
 
 #include <libaio.h>
+#include <cassert>
+#include <fcntl.h>     // 包含 open 函数的声明
+#include <unistd.h>    // 包含 close 函数的声明
 
 #include "logger.h"
 #include "ann_exception.h"
@@ -274,6 +277,7 @@ public:
     }
 
     void close() {
+        flush(); // 刷新所有未完成的请求
         if (fd != -1) {
             ::close(fd);
             fd = -1;

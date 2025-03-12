@@ -850,8 +850,10 @@ void create_disk_layout(const std::string base_file, const std::string mem_index
     uint32_t npts, ndims;
 
     // amount to read or write in one shot
-    size_t read_blk_size = 64 * 1024 * 1024;     // 一次 64 MB 大小写入
+    size_t read_blk_size = 8 * 1024 * 1024;     // 一次 64 MB 大小写入
     size_t write_blk_size = read_blk_size;
+    size_t num_buffers = 16;
+
     cached_ifstream base_reader(base_file, read_blk_size);
     base_reader.read((char *)&npts, sizeof(uint32_t));
     base_reader.read((char *)&ndims, sizeof(uint32_t));
@@ -893,7 +895,9 @@ void create_disk_layout(const std::string base_file, const std::string mem_index
     size_t actual_file_size = get_file_size(mem_index_file);
     diskann::cout << "Vamana index file size=" << actual_file_size << std::endl;
     std::ifstream vamana_reader(mem_index_file, std::ios::binary);
-    cached_ofstream diskann_writer(output_file, write_blk_size);     // key
+
+    // cached_ofstream diskann_writer(output_file, write_blk_size);     // key
+    CachedAioDirectWriter diskann_writer(output_file,write_blk_size,num_buffers);
 
     // metadata: width, medoid
     uint32_t width_u32, medoid_u32;
