@@ -850,7 +850,7 @@ void create_disk_layout(const std::string base_file, const std::string mem_index
     uint32_t npts, ndims;
 
     // amount to read or write in one shot
-    size_t read_blk_size = 8 * 1024 * 1024;     // 一次 64 MB 大小写入
+    size_t read_blk_size = 8 * 1024 * 1024;     // 一次 64 MB 大小写入，似乎是越大越好，但是内存开销也大
     size_t write_blk_size = read_blk_size;
     size_t num_buffers = 16;
 

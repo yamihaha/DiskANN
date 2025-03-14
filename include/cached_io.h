@@ -339,6 +339,9 @@ private:
         struct iocb cb;
         io_prep_pwrite(&cb, fd, cache_buffers[current_buffer], cur_off, file_offset);
 
+        printf("offsetof(struct iocb, added_info) = %zu\n", offsetof(struct iocb, added_info));
+        printf("sizeof(struct iocb) = %zu\n", sizeof(struct iocb));
+
         // 提交写请求
         struct iocb* cbs[] = {&cb};
         int ret = io_submit(ctx, 1, cbs);
