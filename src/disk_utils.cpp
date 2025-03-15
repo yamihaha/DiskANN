@@ -927,6 +927,9 @@ void create_disk_layout(const std::string base_file, const std::string mem_index
     max_node_len = (((uint64_t)width_u32 + 1) * sizeof(uint32_t)) + (ndims_64 * sizeof(T));
     nnodes_per_sector = defaults::SECTOR_LEN / max_node_len; // 0 if max_node_len > SECTOR_LEN
 
+    uint32_t valid_data_per_sector = nnodes_per_sector * max_node_len;      // @wbl
+    diskann_writer.set_valid_data_per_sector(valid_data_per_sector);
+
     diskann::cout << "medoid: " << medoid << "B" << std::endl;
     diskann::cout << "max_node_len: " << max_node_len << "B" << std::endl;
     diskann::cout << "nnodes_per_sector: " << nnodes_per_sector << "B" << std::endl;
@@ -968,7 +971,7 @@ void create_disk_layout(const std::string base_file, const std::string mem_index
     }
     output_file_meta.push_back(disk_index_file_size);
 
-    diskann_writer.write(sector_buf.get(), defaults::SECTOR_LEN);
+    diskann_writer.write_meta_data(sector_buf.get(), defaults::SECTOR_LEN);    // @wbl
 
     std::unique_ptr<T[]> cur_node_coords = std::make_unique<T[]>(ndims_64);
     diskann::cout << "# sectors: " << n_sectors << std::endl;

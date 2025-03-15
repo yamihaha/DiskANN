@@ -284,11 +284,18 @@ public:
         }
     }
 
+    void write_meta_data(const char* data,uint64_t size){
+        memcpy(cache_buffers[current_buffer] + cur_off, data, size);
+        cur_off += size;
+
+        submit_current_buffer(0);
+    }
+
     void write(const char* data, uint64_t size) {
         while (size > 0) {
             // 检查当前 cached_buf 是否已满
             if (cur_off == cache_size) {
-                submit_current_buffer();
+                submit_current_buffer(valid_data_per_sector);
             }
 
             // 计算当前 cached_buf 剩余空间
@@ -306,11 +313,15 @@ public:
     void flush() {
         // 提交当前缓冲区的数据
         if (cur_off > 0) {
-            submit_current_buffer();
+            submit_current_buffer(valid_data_per_sector);
         }
 
         // 等待所有未完成的请求完成
         wait_all();
+    }
+
+    void set_valid_data_per_sector(uint32_t size){
+        valid_data_per_sector = size;
     }
 
 private:
@@ -323,9 +334,10 @@ private:
     uint64_t file_offset; // 文件的写入偏移量
     uint64_t current_buffer = 0; // 当前使用的缓存缓冲区编号
     std::vector<std::vector<struct iocb>> pending_requests; // 每个缓存缓冲区的未完成请求
+    uint32_t valid_data_per_sector ;
 
     // 提交当前缓存缓冲区的数据
-    void submit_current_buffer() {
+    void submit_current_buffer(uint32_t added_info) {
         if (cur_off == 0) {
             return; // 没有数据需要提交
         }
@@ -337,10 +349,11 @@ private:
 
         // 准备写请求
         struct iocb cb;
-        io_prep_pwrite(&cb, fd, cache_buffers[current_buffer], cur_off, file_offset);
+        io_prep_pwrite(&cb, fd, cache_buffers[current_buffer], cur_off, file_offset,added_info);
 
-        printf("offsetof(struct iocb, added_info) = %zu\n", offsetof(struct iocb, added_info));
-        printf("sizeof(struct iocb) = %zu\n", sizeof(struct iocb));
+        // printf("offsetof(struct iocb, added_info) = %zu\n", offsetof(struct iocb, added_info));
+        // printf("sizeof(struct iocb) = %zu\n", sizeof(struct iocb));
+        printf("------- added_info: %d\n",added_info);
 
         // 提交写请求
         struct iocb* cbs[] = {&cb};
